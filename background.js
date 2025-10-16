@@ -1,9 +1,27 @@
 // Store pinned tabs
 let pinnedTabs = {};
 
+// Keep track of recent redirects by URL per tab
+let tabRedirects = {};
+
 // Helper function to check if a URL is from a different domain
 function isDifferentDomain(url1, url2) {
-  return new URL(url1).hostname !== new URL(url2).hostname;
+  try {
+    const domain1 = new URL(url1).hostname;
+    const domain2 = new URL(url2).hostname;
+    return domain1 !== domain2;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Helper to get domain from URL string
+function getDomain(urlString) {
+  try {
+    return new URL(urlString).hostname;
+  } catch (e) {
+    return "";
+  }
 }
 
 // Function to update pinned tabs upon extension activation
@@ -23,9 +41,25 @@ updatePinnedTabs();
 // Listen for tab updates
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (tab.pinned) {
+    // Store the current tab info
     pinnedTabs[tabId] = { url: tab.url, index: tab.index };
+    
+    // Reset redirect tracking only when URL actually changes in the address bar
+    // This prevents the redirect loop because a redirect to the same page won't reset our tracking
+    if (changeInfo.url) {
+      // Only reset tracking for domains other than the one we're currently on
+      // This way we maintain knowledge of domains we've redirected from
+      const currentDomain = getDomain(tab.url);
+      
+      if (tabRedirects[tabId]) {
+        // Don't completely reset - just remove the current domain from tracking
+        // to prevent future redirects to it from opening in new tabs
+        delete tabRedirects[tabId][currentDomain];
+      }
+    }
   } else {
     delete pinnedTabs[tabId]; // Remove from pinnedTabs if unpinned
+    delete tabRedirects[tabId]; // Clean up redirect tracking
   }
 });
 
@@ -40,6 +74,9 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
       }
     );
   }
+  
+  // Clean up tracking data
+  delete tabRedirects[tabId];
 });
 
 // Listen for tab creation
@@ -56,8 +93,28 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
 
   chrome.tabs.get(details.tabId, (tab) => {
     if (tab.pinned && isDifferentDomain(tab.url, details.url)) {
+      // Initialize tracking for this tab if needed
+      if (!tabRedirects[tab.id]) {
+        tabRedirects[tab.id] = {};
+      }
+      
+      // Extract domain for tracking
+      const targetDomain = getDomain(details.url);
+      
+      // Check if we've seen this domain before in this tab
+      if (tabRedirects[tab.id][targetDomain]) {
+        // This is at least the second attempt to navigate to this domain
+        // Allow the navigation to proceed (by doing nothing)
+        // This breaks potential redirect loops
+        return;
+      }
+      
+      // First time seeing this domain, mark it as seen
+      tabRedirects[tab.id][targetDomain] = true;
+      
       // Cancel the navigation in the pinned tab
       chrome.tabs.update(details.tabId, { url: tab.url });
+      
       // Open the new URL in a new tab
       chrome.tabs.create({ url: details.url, index: tab.index + 1 });
     }
