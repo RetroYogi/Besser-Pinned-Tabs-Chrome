@@ -38,22 +38,30 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
   if (details.frameId !== 0) return; // Only handle main frame navigation
 
   chrome.tabs.get(details.tabId, (tab) => {
-    if (tab.pinned && isDifferentDomain(tab.url, details.url)) {
-      // Cancel the navigation in the pinned tab
-      chrome.tabs.update(details.tabId, { url: tab.url });
-      // Open the new URL in a new tab
-      chrome.tabs.create({ url: details.url, index: tab.index + 1 });
+    if (tab.pinned) { // Check if the tab is pinned before proceeding
+      if (isDifferentDomain(tab.url, details.url)) {
+        // Cancel the navigation in the pinned tab
+        chrome.tabs.update(details.tabId, { url: tab.url });
+        // Open the new URL in a new tab
+        chrome.tabs.create({ url: details.url, index: tab.index + 1 });
+      }
     }
   });
 });
+
 
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "openInNewTab") {
     chrome.tabs.get(sender.tab.id, (tab) => {
       if (tab.pinned && isDifferentDomain(tab.url, request.url)) {
-        chrome.tabs.create({ url: request.url, index: tab.index + 1 });
-        sendResponse({ success: true });
+        chrome.tabs.create({ url: request.url, index: tab.index + 1 }, (newTab) => {
+          if (newTab) { // Check if new tab creation was successful
+            sendResponse({ success: true });
+          } else {
+            sendResponse({ success: false }); // Handle potential errors
+          }
+        });
       } else {
         sendResponse({ success: false });
       }
