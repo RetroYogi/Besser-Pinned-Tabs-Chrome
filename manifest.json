@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Besser Pinned Tabs",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Protects pinned tabs against unintentional closures and prevents opening a different website inside a pinned tab.",
   "permissions": [
     "tabs",
@@ -10,12 +10,6 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
-    }
-  ],
   "action": {
     "default_icon": {
       "16": "icon16.png",
