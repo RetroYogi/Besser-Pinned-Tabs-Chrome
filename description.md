@@ -22,4 +22,8 @@ This extension improves how Chrome handles pinned tabs by protecting them agains
 
 Besser Pinned Tabs keeps your important pinned tabs safe and your browsing organized. It works silently in the background, requiring no setup or interaction.
 
+## Known Limitations
+
+- **Internal browser pages**: The extension does not protect navigation on Chrome's internal pages (chrome://, about:, etc.) or when the browser first launches with a pinned tab on an internal page. This is by design to maintain minimal permissions and privacy. If you need to navigate from these pages, the URL will open in the pinned tab on first use.
+
 Open source and privacy-friendly: No data collection. Code available on GitHub.
