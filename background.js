@@ -5,11 +5,25 @@ let pinnedTabs = {};
 function isDifferentDomain(url1, url2) {
   return new URL(url1).hostname !== new URL(url2).hostname;
 }
+// Function to update pinned tabs upon extension activation
+function updatePinnedTabs() {
+  chrome.tabs.query({}, (tabs) => {
+    for (const tab of tabs) {
+      if (tab.pinned) {
+        pinnedTabs[tab.id] = { url: tab.url, index: tab.index };
+      }
+    }
+  });
+}
+// Call this function after background script loads
+updatePinnedTabs();
 
 // Listen for tab updates
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (tab.pinned) {
     pinnedTabs[tabId] = { url: tab.url, index: tab.index };
+  } else {
+    delete pinnedTabs[tabId]; // Remove from pinnedTabs if unpinned
   }
 });
 
